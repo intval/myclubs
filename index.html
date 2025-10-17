@@ -38,6 +38,35 @@
             gap: 12px;
             align-items: center;
         }
+
+        /* Make the layout responsive: on narrow screens collapse the grid to flex rows
+           so the plus button sits at the row-end and doesn't overflow */
+        @media (max-width: 576px) {
+            .place-row {
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                gap: 8px;
+            }
+            .place-name {
+                flex: 1 1 auto;
+                min-width: 0;
+            }
+            .place-row > div:not(.place-name) {
+                /* shrink the visit slots to avoid overflow */
+                flex: 0 0 auto;
+            }
+            .place-row .btn-add-visit,
+            .place-row .visit-pill {
+                min-width: 40px;
+                height: 34px;
+                font-size: 0.9rem;
+            }
+            /* ensure the add button stays visually inside the card */
+            .place-row {
+                padding-right: 0.5rem;
+            }
+        }
         .place-left {
             display: flex;
             align-items: center;
@@ -536,7 +565,9 @@
                 btnCell.style.display = 'flex';
                 btnCell.style.alignItems = 'center';
                 btnCell.style.justifyContent = 'center';
-                if (!hasVisitToday(place, currentPeriod)) {
+                // hide the add button if the place already has 4 visits in the viewing period
+                // or if it has been visited today (preserve existing behaviour)
+                if (!hasVisitToday(place, currentPeriod) && periodVisits.length < 4) {
                     const btn = document.createElement('button');
                     btn.className = 'btn btn-success btn-add-visit';
                     btn.setAttribute('aria-label', `Add visit to ${place}`);
