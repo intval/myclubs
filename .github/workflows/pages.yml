@@ -1,0 +1,31 @@
+name: "Deploy to GitHub Pages"
+
+on:
+  push:
+    branches:
+      - main
+
+# Required permissions for Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Optional: set up Node.js (skip if not needed)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Upload Pages artifact
+        # This action packages the repository (or a build output) and hands it to GitHub Pages
+        uses: actions/upload-pages-artifact@v1
+        with:
+          # For a simple static site at the repo root, upload the entire repository
+          path: ./
