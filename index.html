@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visit Tracker</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #f8f9fa;
+        }
+        /* Basic page */
+        .circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #0d6efd;
+            color: white;
+            text-align: center;
+            line-height: 32px;
+            margin: auto;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.1s;
+        }
+        .circle:active, .btn-add-visit:active {
+            transform: scale(0.9);
+        }
+
+        /* Row/card for each place */
+        .place-row {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+            display: grid;
+            grid-template-columns: 280px repeat(4, 72px) 64px;
+            gap: 12px;
+            align-items: center;
+        }
+        .place-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            min-width: 0;
+        }
+        .place-name {
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+
+        /* visit pills */
+        .visit-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            padding: 0.25rem 0.6rem;
+            font-size: 0.85rem;
+            color: #fff;
+            background: linear-gradient(180deg,#0d6efd,#084298);
+            box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+            cursor: pointer;
+            user-select: none;
+            min-width: 40px;
+            text-align: center;
+        }
+        .visit-pill:active { transform: scale(0.98); }
+
+        .visits-wrapper {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            margin-left: 0.25rem;
+        }
+
+        /* proper plus button */
+        .btn-add-visit {
+            min-width: 44px;
+            height: 38px;
+            border-radius: 6px;
+            font-size: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .table td, .table th {
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div id="main">
+            <h3 class="text-center mb-3" id="period"></h3>
+            <div class="d-flex justify-content-between mb-3">
+                <button class="btn btn-outline-primary" id="prev">&lt;</button>
+                <button class="btn btn-outline-primary" id="settings">Settings</button>
+                <button class="btn btn-outline-primary" id="next">&gt;</button>
+            </div>
+            <div class="card">
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" id="places"></div>
+                </div>
+            </div>
+            <button class="btn btn-success w-100 mt-3" id="addPlace">Add Place</button>
+        </div>
+        <div id="settingsScreen" style="display: none;">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Settings</h4>
+                    <label for="startDateInput" class="form-label">Start Date of Period:</label>
+                    <input type="date" class="form-control mb-3" id="startDateInput">
+                    <button class="btn btn-primary w-100 mb-2" id="saveStart">Save</button>
+                    <button class="btn btn-success w-100 mb-2" id="addLocationSettings">Add Location</button>
+                    <button class="btn btn-secondary w-100" id="backToMain">Back to Main</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Location Modal -->
+    <div class="modal fade" id="addLocationModal" tabindex="-1" aria-labelledby="addLocationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addLocationModalLabel">Add Location</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" class="form-control" id="modalInput" placeholder="e.g., Blockfabrick">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal" id="modalCancel">Cancel</button>
+                    <button type="button" class="btn btn-success" id="modalAdd">Add</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Modal -->
+    <div class="modal fade" id="messageModal" tabindex="-1" aria-labelledby="messageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="messageModalLabel">Notice</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="messageText"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" data-bs-dismiss="modal" id="messageOk">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Visit Modal -->
+    <div class="modal fade" id="editVisitModal" tabindex="-1" aria-labelledby="editVisitModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editVisitModalLabel">Edit Visit</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label">Date</label>
+                    <input type="date" class="form-control" id="editVisitDate">
+                    <input type="hidden" id="editVisitPlace">
+                    <input type="hidden" id="editVisitOriginal">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" id="editVisitDelete">Delete</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="editVisitSave">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmModalLabel">Confirm</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="confirmText"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal" id="confirmNo">No</button>
+                    <button type="button" class="btn btn-success" id="confirmYes">Yes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script>
+        // Replace localStorage string serialization with IndexedDB-backed storage
+        const idbStorage = {
+            _dbPromise: null,
+            init() {
+                if (this._dbPromise) return this._dbPromise;
+                this._dbPromise = new Promise((resolve, reject) => {
+                    const req = indexedDB.open('myclubs-db', 1);
+                    req.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
+                    };
+                    req.onsuccess = (e) => resolve(e.target.result);
+                    req.onerror = (e) => reject(e.target.error || e.target);
+                });
+                return this._dbPromise;
+            },
+            async get(key) {
+                const db = await this.init();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction('kv', 'readonly');
+                    const store = tx.objectStore('kv');
+                    const req = store.get(key);
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                });
+            },
+            async set(key, value) {
+                const db = await this.init();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction('kv', 'readwrite');
+                    const store = tx.objectStore('kv');
+                    const req = store.put(value, key);
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                });
+            }
+        };
+
+        // in-memory defaults; will be overwritten by loadState()
+        let startDate = '2025-10-13';
+        let places = ['Blockfabrick', 'BoulderBar Hautbahnhof'];
+        let visits = [];
+        let viewingPeriodStart;
+
+        function calculatePeriodStartForDate(date) {
+            console.log(`Calculating period start for date: ${date}`);
+            // ensure anchor day is a valid date
+            let anchorDate = new Date(startDate);
+            if (isNaN(anchorDate.getTime())) {
+                // try to coerce if startDate was stored as an object with a date property
+                if (startDate && typeof startDate === 'object' && startDate.date) {
+                    anchorDate = new Date(startDate.date);
+                }
+            }
+            if (isNaN(anchorDate.getTime())) {
+                // fallback to 1st of current month
+                anchorDate = new Date();
+                anchorDate.setDate(1);
+            }
+            const anchorDay = anchorDate.getDate();
+            const d = new Date(date || Date.now());
+            const day = d.getDate();
+            let periodYear = d.getFullYear();
+            let periodMonth = d.getMonth();
+            if (day < anchorDay) {
+                periodMonth--;
+                if (periodMonth < 0) {
+                    periodMonth = 11;
+                    periodYear--;
+                }
+            }
+            const periodStart = new Date(periodYear, periodMonth, anchorDay);
+            console.log(`Period start: ${periodStart}`);
+            return periodStart;
+        }
+
+        function calculateNextPeriodStart(periodStart) {
+            // be defensive if periodStart is invalid
+            let next = new Date(periodStart);
+            if (isNaN(next.getTime())) {
+                next = calculatePeriodStartForDate(new Date());
+            }
+            next.setMonth(next.getMonth() + 1);
+            console.log(`Next period start: ${next}`);
+            return next;
+        }
+
+        function formatPeriod(periodStart) {
+            const end = new Date(calculateNextPeriodStart(periodStart));
+            end.setDate(end.getDate() - 1);
+            return `${periodStart.getDate()} ${periodStart.toLocaleString('default', { month: 'short' })} ${periodStart.getFullYear()} - ${end.getDate()} ${end.toLocaleString('default', { month: 'short' })} ${end.getFullYear()}`;
+        }
+
+        function getVisitsForPlaceInPeriod(place, periodStart) {
+            const next = calculateNextPeriodStart(periodStart);
+            console.log(`Filtering visits for ${place} between ${periodStart} and ${next}`);
+            const filteredVisits = visits.filter(v => {
+                if (!v.place || !v.date) {
+                    console.warn(`Invalid visit data: ${JSON.stringify(v)}`);
+                    return false;
+                }
+                return v.place === place && new Date(v.date) >= periodStart && new Date(v.date) < next;
+            }).sort((a, b) => new Date(a.date) - new Date(b.date));
+            console.log(`Found ${filteredVisits.length} visits for ${place}: ${JSON.stringify(filteredVisits)}`);
+            return filteredVisits;
+        }
+
+        // Load persisted state from IndexedDB
+        async function loadState() {
+            try {
+                const sd = await idbStorage.get('startDate');
+                if (sd) startDate = sd;
+                const pl = await idbStorage.get('places');
+                if (Array.isArray(pl) && pl.length) places = pl;
+                const vs = await idbStorage.get('visits');
+                if (Array.isArray(vs)) visits = vs;
+            } catch (e) {
+                console.error('Error loading state from IndexedDB', e);
+            }
+            viewingPeriodStart = calculatePeriodStartForDate(new Date());
+            sortVisits();
+            render();
+        }
+
+        // Ensure visits are ordered ascending by date per place
+        function sortVisits() {
+            visits.sort((a, b) => new Date(a.date) - new Date(b.date));
+        }
+
+        function hasVisitToday(place, periodStart) {
+            const today = new Date();
+            const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            const todayEnd = new Date(todayStart);
+            todayEnd.setDate(todayEnd.getDate() + 1);
+            const visitsInPeriod = getVisitsForPlaceInPeriod(place, periodStart);
+            const hasToday = visitsInPeriod.some(v => {
+                const visitDate = new Date(v.date);
+                const isSameDay = visitDate.getFullYear() === today.getFullYear() &&
+                                 visitDate.getMonth() === today.getMonth() &&
+                                 visitDate.getDate() === today.getDate();
+                console.log(`Checking visit on ${v.date} for ${place}: same day? ${isSameDay}`);
+                return isSameDay;
+            });
+            console.log(`Checked if ${place} has visit today (${todayStart.toDateString()}): ${hasToday}`);
+            return hasToday;
+        }
+
+        function showMessageModal(message) {
+            console.log(`Showing message modal: ${message}`);
+            document.getElementById('messageText').textContent = message;
+            const modal = new bootstrap.Modal(document.getElementById('messageModal'));
+            modal.show();
+        }
+
+        function showConfirmModal(message, onConfirm) {
+            console.log(`Showing confirm modal: ${message}`);
+            document.getElementById('confirmText').textContent = message;
+            const modalEl = document.getElementById('confirmModal');
+            const modal = new bootstrap.Modal(modalEl);
+            const confirmYes = document.getElementById('confirmYes');
+            const confirmNo = document.getElementById('confirmNo');
+            const yesHandler = async () => {
+                try {
+                    await onConfirm(true);
+                } catch (e) {
+                    console.error('Error in confirm handler', e);
+                }
+                modal.hide();
+                confirmYes.removeEventListener('click', yesHandler);
+                confirmNo.removeEventListener('click', noHandler);
+            };
+            const noHandler = () => {
+                try { onConfirm(false); } catch (e) { console.error('Error in confirm no handler', e); }
+                modal.hide();
+                confirmYes.removeEventListener('click', yesHandler);
+                confirmNo.removeEventListener('click', noHandler);
+            };
+            confirmYes.addEventListener('click', yesHandler);
+            confirmNo.addEventListener('click', noHandler);
+            modal.show();
+        }
+
+        async function addVisit(place) {
+            console.log(`Attempting to add visit for ${place}`);
+            const currentPeriod = calculatePeriodStartForDate(new Date());
+            const currentVisits = getVisitsForPlaceInPeriod(place, currentPeriod);
+            if (currentVisits.length >= 4) {
+                console.log(`Cannot add visit to ${place}: Max 4 visits reached for period ${currentPeriod}`);
+                showMessageModal('Max 4 visits per period');
+                return;
+            }
+            if (hasVisitToday(place, currentPeriod)) {
+                console.log(`Cannot add visit to ${place}: Already visited today`);
+                showMessageModal('This location was already visited today');
+                return;
+            }
+            const visitDate = new Date().toISOString();
+            visits.push({ place, date: visitDate });
+            sortVisits();
+            try {
+                await idbStorage.set('visits', visits);
+                console.log(`Successfully added visit to ${place} on ${visitDate}`);
+            } catch (e) {
+                console.error(`Error saving visits to IndexedDB: ${e}`);
+                showMessageModal('Error saving visit. Please try again.');
+            }
+            render();
+        }
+
+        async function addLocation(name, fromSettings = false) {
+            if (name && name.trim()) {
+                console.log(`Adding location: ${name} (from settings: ${fromSettings})`);
+                places.push(name.trim());
+                try {
+                    await idbStorage.set('places', places);
+                } catch (e) {
+                    console.error(`Error saving places to IndexedDB: ${e}`);
+                    showMessageModal('Error saving location. Please try again.');
+                }
+                if (fromSettings) {
+                    document.getElementById('main').style.display = 'block';
+                    document.getElementById('settingsScreen').style.display = 'none';
+                }
+                render();
+            } else {
+                console.log('Location name empty or canceled');
+            }
+        }
+
+        function showModal(fromSettings = false) {
+            console.log('Showing add location modal');
+            document.getElementById('modalInput').value = '';
+            const modal = new bootstrap.Modal(document.getElementById('addLocationModal'));
+            const modalAdd = document.getElementById('modalAdd');
+            modalAdd.onclick = () => {
+                const name = document.getElementById('modalInput').value;
+                addLocation(name, fromSettings);
+                modal.hide();
+            };
+            modal.show();
+        }
+
+        function handleLongPress(element, action) {
+            // startTime is null until a real press (touchstart/mousedown) occurs
+            let startTime = null;
+            const startEvents = ['touchstart', 'mousedown'];
+            const endEvents = ['touchend', 'mouseup', 'mouseleave', 'touchcancel'];
+            startEvents.forEach(ev => {
+                element.addEventListener(ev, (e) => {
+                    // only respond to primary mouse button for mousedown
+                    if (ev === 'mousedown' && e.button !== 0) return;
+                    startTime = Date.now();
+                    element.classList.add('active');
+                });
+            });
+            endEvents.forEach(ev => {
+                element.addEventListener(ev, () => {
+                    // ignore end events unless a start event previously occurred
+                    if (!startTime) return;
+                    const duration = Date.now() - startTime;
+                    startTime = null;
+                    element.classList.remove('active');
+                    // require a longer press to avoid accidental deletes
+                    if (duration >= 500) action();
+                });
+            });
+        }
+
+        function dayWithSuffix(n) {
+            const j = n % 10, k = n % 100;
+            if (j === 1 && k !== 11) return n + 'st';
+            if (j === 2 && k !== 12) return n + 'nd';
+            if (j === 3 && k !== 13) return n + 'rd';
+            return n + 'th';
+        }
+
+        function render() {
+            document.getElementById('period').textContent = `Period: ${formatPeriod(viewingPeriodStart)}`;
+            const placesDiv = document.getElementById('places');
+            placesDiv.innerHTML = '';
+            const currentPeriod = calculatePeriodStartForDate(new Date());
+            places.forEach(place => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item place-row';
+
+                // name cell (grid column 1)
+                const nameEl = document.createElement('div');
+                nameEl.className = 'place-name';
+                nameEl.textContent = place;
+                item.appendChild(nameEl);
+
+                // four fixed visit slots
+                const periodVisits = getVisitsForPlaceInPeriod(place, viewingPeriodStart);
+                const visitEntries = periodVisits.map(v => ({ day: new Date(v.date).getDate(), fullDate: v.date }));
+                for (let i = 0; i < 4; i++) {
+                    const slot = document.createElement('div');
+                    slot.style.minHeight = '40px';
+                    slot.style.display = 'flex';
+                    slot.style.alignItems = 'center';
+                    slot.style.justifyContent = 'center';
+                    if (visitEntries[i]) {
+                        const pill = document.createElement('div');
+                        pill.className = 'visit-pill';
+                        pill.textContent = dayWithSuffix(visitEntries[i].day);
+                        handleLongPress(pill, () => {
+                            showConfirmModal(`Delete visit to ${place} on ${dayWithSuffix(visitEntries[i].day)}?`, async (confirmed) => {
+                                if (confirmed) {
+                                    visits = visits.filter(v => !(v.place === place && v.date === visitEntries[i].fullDate));
+                                    try { await idbStorage.set('visits', visits); } catch (e) { showMessageModal('Error deleting visit.'); }
+                                    render();
+                                }
+                            });
+                        });
+                        // click opens edit modal
+                        pill.addEventListener('click', () => {
+                            const modal = new bootstrap.Modal(document.getElementById('editVisitModal'));
+                            document.getElementById('editVisitDate').value = new Date(visitEntries[i].fullDate).toISOString().split('T')[0];
+                            document.getElementById('editVisitPlace').value = place;
+                            document.getElementById('editVisitOriginal').value = visitEntries[i].fullDate;
+                            modal.show();
+                        });
+                        slot.appendChild(pill);
+                    }
+                    item.appendChild(slot);
+                }
+
+                // add button cell (last column)
+                const btnCell = document.createElement('div');
+                btnCell.style.display = 'flex';
+                btnCell.style.alignItems = 'center';
+                btnCell.style.justifyContent = 'center';
+                if (!hasVisitToday(place, currentPeriod)) {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-success btn-add-visit';
+                    btn.setAttribute('aria-label', `Add visit to ${place}`);
+                    btn.textContent = '+';
+                    btn.addEventListener('click', (e) => { e.preventDefault(); addVisit(place); });
+                    btnCell.appendChild(btn);
+                } else {
+                    // keep spacing consistent
+                    const spacer = document.createElement('div');
+                    spacer.style.width = '44px';
+                    btnCell.appendChild(spacer);
+                }
+                item.appendChild(btnCell);
+                placesDiv.appendChild(item);
+            });
+            document.getElementById('next').style.display = viewingPeriodStart.getTime() >= currentPeriod.getTime() ? 'none' : 'inline-block';
+        }
+
+        document.getElementById('addPlace').addEventListener('click', () => {
+            console.log('Clicked Add Place button');
+            showModal(false);
+        });
+
+        // Edit visit modal handlers
+        document.getElementById('editVisitSave').addEventListener('click', async () => {
+            const newDate = document.getElementById('editVisitDate').value;
+            const place = document.getElementById('editVisitPlace').value;
+            const original = document.getElementById('editVisitOriginal').value;
+            if (!newDate) { showMessageModal('Please choose a date'); return; }
+            // update visit
+            const iso = new Date(newDate).toISOString();
+            visits = visits.map(v => (v.place === place && v.date === original) ? { place, date: iso } : v);
+            sortVisits();
+            try { await idbStorage.set('visits', visits); } catch (e) { showMessageModal('Error saving visit.'); }
+            bootstrap.Modal.getInstance(document.getElementById('editVisitModal')).hide();
+            render();
+        });
+
+        document.getElementById('editVisitDelete').addEventListener('click', async () => {
+            const place = document.getElementById('editVisitPlace').value;
+            const original = document.getElementById('editVisitOriginal').value;
+            visits = visits.filter(v => !(v.place === place && v.date === original));
+            sortVisits();
+            try { await idbStorage.set('visits', visits); } catch (e) { showMessageModal('Error deleting visit.'); }
+            bootstrap.Modal.getInstance(document.getElementById('editVisitModal')).hide();
+            render();
+        });
+
+        document.getElementById('prev').addEventListener('click', () => {
+            console.log('Clicked Previous Period button');
+            const prevStart = new Date(viewingPeriodStart);
+            prevStart.setMonth(prevStart.getMonth() - 1);
+            viewingPeriodStart = prevStart;
+            console.log(`Navigated to previous period: ${formatPeriod(viewingPeriodStart)}`);
+            render();
+        });
+
+        document.getElementById('next').addEventListener('click', () => {
+            console.log('Clicked Next Period button');
+            const nextStart = new Date(viewingPeriodStart);
+            nextStart.setMonth(nextStart.getMonth() + 1);
+            viewingPeriodStart = nextStart;
+            console.log(`Navigated to next period: ${formatPeriod(viewingPeriodStart)}`);
+            render();
+        });
+
+        document.getElementById('settings').addEventListener('click', () => {
+            console.log('Opening settings screen');
+            document.getElementById('main').style.display = 'none';
+            document.getElementById('settingsScreen').style.display = 'block';
+            document.getElementById('startDateInput').value = new Date(startDate).toISOString().split('T')[0];
+        });
+
+        document.getElementById('saveStart').addEventListener('click', async () => {
+            const newStart = document.getElementById('startDateInput').value;
+            if (newStart) {
+                console.log(`Saving start date: ${newStart}`);
+                startDate = newStart;
+                try {
+                    await idbStorage.set('startDate', startDate);
+                } catch (e) {
+                    console.error(`Error saving start date: ${e}`);
+                    showMessageModal('Error saving start date. Please try again.');
+                }
+                viewingPeriodStart = calculatePeriodStartForDate(new Date());
+                document.getElementById('main').style.display = 'block';
+                document.getElementById('settingsScreen').style.display = 'none';
+                render();
+            } else {
+                console.log('No start date selected');
+                showMessageModal('Please select a start date.');
+            }
+        });
+
+        document.getElementById('addLocationSettings').addEventListener('click', () => {
+            console.log('Clicked Add Location in settings');
+            showModal(true);
+        });
+
+        document.getElementById('backToMain').addEventListener('click', () => {
+            console.log('Back to Main clicked');
+            document.getElementById('main').style.display = 'block';
+            document.getElementById('settingsScreen').style.display = 'none';
+        });
+
+        document.getElementById('modalCancel').addEventListener('click', () => {
+            console.log('Add location modal canceled');
+        });
+
+        document.getElementById('messageOk').addEventListener('click', () => {
+            console.log('Message modal closed');
+        });
+
+        document.getElementById('confirmNo').addEventListener('click', () => {
+            console.log('Confirm modal canceled');
+        });
+
+        // Initialize from IndexedDB
+        loadState();
+    </script>
+</body>
+</html>
